@@ -5,6 +5,7 @@
 build/
 cmake-build-*/
 out/
+.worktrees/
 
 # Generated build metadata and firmware artifacts
 compile_commands.json
