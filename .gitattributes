@@ -1,0 +1,8 @@
+# Preserve byte-identical upstream replicas across Windows checkouts.
+User_File/1_Middleware/Algorithm/Basic/** -text
+User_File/1_Middleware/Algorithm/PID/** -text
+User_File/1_Middleware/Driver/CAN/** -text
+User_File/1_Middleware/System/Timestamp/** -text
+User_File/2_Device/Motor/Motor_DM/** -text
+Middlewares/ST/ARM/DSP/Lib/*.a -text
+

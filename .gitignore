@@ -1,0 +1,17 @@
+# CLion local project state
+.idea/
+
+# CMake build trees
+build/
+cmake-build-*/
+out/
+
+# Generated build metadata and firmware artifacts
+compile_commands.json
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.su
+
