@@ -25,9 +25,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-Struct_CAN_Manage_Object CAN1_Manage_Object = {nullptr};
-Struct_CAN_Manage_Object CAN2_Manage_Object = {nullptr};
-Struct_CAN_Manage_Object CAN3_Manage_Object = {nullptr};
+Struct_CAN_Manage_Object CAN1_Manage_Object = {};
+Struct_CAN_Manage_Object CAN2_Manage_Object = {};
+Struct_CAN_Manage_Object CAN3_Manage_Object = {};
 
 // CAN通信发送缓冲区
 
@@ -73,7 +73,7 @@ uint8_t CAN3_0x4fe_Tx_Data[8];
  *
  * @param hfdcan CAN编号
  */
-void can_filter_mask_config(FDCAN_HandleTypeDef *hfdcan)
+static void can_filter_mask_config(FDCAN_HandleTypeDef *hfdcan)
 {
     FDCAN_FilterTypeDef can_filter_init_structure;
 
@@ -90,6 +90,28 @@ void can_filter_mask_config(FDCAN_HandleTypeDef *hfdcan)
     HAL_FDCAN_ConfigGlobalFilter(hfdcan, FDCAN_REJECT, FDCAN_REJECT, FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE);
 
     // 启动CAN中断与总线
+    HAL_FDCAN_ActivateNotification(hfdcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_BUS_OFF | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR, 0);
+}
+
+/**
+ * @brief 配置CAN扩展帧过滤器
+ *
+ * @param hfdcan CAN编号
+ */
+static void can_extended_filter_mask_config(FDCAN_HandleTypeDef *hfdcan)
+{
+    FDCAN_FilterTypeDef can_filter_init_structure;
+
+    // 配置fifo0扩展帧全通滤波器
+    can_filter_init_structure.IdType = FDCAN_EXTENDED_ID;
+    can_filter_init_structure.FilterIndex = 0;
+    can_filter_init_structure.FilterType = FDCAN_FILTER_MASK;
+    can_filter_init_structure.FilterConfig = FDCAN_FILTER_TO_RXFIFO0;
+    can_filter_init_structure.FilterID1 = 0x00000000;
+    can_filter_init_structure.FilterID2 = 0x00000000;
+    HAL_FDCAN_ConfigFilter(hfdcan, &can_filter_init_structure);
+
+    HAL_FDCAN_ConfigGlobalFilter(hfdcan, FDCAN_REJECT, FDCAN_REJECT, FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE);
     HAL_FDCAN_ActivateNotification(hfdcan, FDCAN_IT_RX_FIFO0_NEW_MESSAGE | FDCAN_IT_BUS_OFF | FDCAN_IT_ERROR_PASSIVE | FDCAN_IT_ARB_PROTOCOL_ERROR | FDCAN_IT_DATA_PROTOCOL_ERROR, 0);
 }
 
@@ -123,6 +145,34 @@ void CAN_Init(FDCAN_HandleTypeDef *hfdcan, CAN_Callback Callback_Function)
 }
 
 /**
+ * @brief 初始化使用扩展帧的CAN总线
+ *
+ * @param hfdcan CAN编号
+ * @param Callback_Function 处理回调函数
+ */
+void CAN_Extended_Init(FDCAN_HandleTypeDef *hfdcan, CAN_Callback Callback_Function)
+{
+    if (hfdcan->Instance == FDCAN1)
+    {
+        CAN1_Manage_Object.CAN_Handler = hfdcan;
+        CAN1_Manage_Object.Callback_Function = Callback_Function;
+    }
+    else if (hfdcan->Instance == FDCAN2)
+    {
+        CAN2_Manage_Object.CAN_Handler = hfdcan;
+        CAN2_Manage_Object.Callback_Function = Callback_Function;
+    }
+    else if (hfdcan->Instance == FDCAN3)
+    {
+        CAN3_Manage_Object.CAN_Handler = hfdcan;
+        CAN3_Manage_Object.Callback_Function = Callback_Function;
+    }
+
+    can_extended_filter_mask_config(hfdcan);
+    HAL_FDCAN_Start(hfdcan);
+}
+
+/**
  * @brief 发送数据帧
  *
  * @param hcan CAN编号
@@ -139,6 +189,37 @@ uint8_t CAN_Transmit_Data(FDCAN_HandleTypeDef *hfdcan, uint16_t ID, uint8_t *Dat
     tx_header.IdType = FDCAN_STANDARD_ID;
     tx_header.TxFrameType = FDCAN_DATA_FRAME;
     tx_header.DataLength = Length;
+    tx_header.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
+    tx_header.BitRateSwitch = FDCAN_BRS_OFF;
+    tx_header.FDFormat = FDCAN_CLASSIC_CAN;
+    tx_header.TxEventFifoControl = FDCAN_NO_TX_EVENTS;
+    tx_header.MessageMarker = 0;
+
+    return (HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_header, Data));
+}
+
+/**
+ * @brief 发送扩展数据帧
+ *
+ * @param hfdcan CAN编号
+ * @param ID 29位扩展ID
+ * @param Data 被发送的数据指针
+ * @param Length 数据长度, Byte
+ * @return uint8_t 执行状态
+ */
+uint8_t CAN_Transmit_Extended_Data(FDCAN_HandleTypeDef *hfdcan, uint32_t ID, uint8_t *Data, uint16_t Length)
+{
+    static const uint32_t dlc[9] = {FDCAN_DLC_BYTES_0, FDCAN_DLC_BYTES_1, FDCAN_DLC_BYTES_2, FDCAN_DLC_BYTES_3, FDCAN_DLC_BYTES_4, FDCAN_DLC_BYTES_5, FDCAN_DLC_BYTES_6, FDCAN_DLC_BYTES_7, FDCAN_DLC_BYTES_8};
+    if (Length > 8U)
+    {
+        return (HAL_ERROR);
+    }
+
+    FDCAN_TxHeaderTypeDef tx_header;
+    tx_header.Identifier = ID;
+    tx_header.IdType = FDCAN_EXTENDED_ID;
+    tx_header.TxFrameType = FDCAN_DATA_FRAME;
+    tx_header.DataLength = dlc[Length];
     tx_header.ErrorStateIndicator = FDCAN_ESI_ACTIVE;
     tx_header.BitRateSwitch = FDCAN_BRS_OFF;
     tx_header.FDFormat = FDCAN_CLASSIC_CAN;
@@ -184,6 +265,8 @@ void TIM_1ms_CAN_PeriodElapsedCallback()
  */
 void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
+    (void)RxFifo0ITs;
+
     // 判断程序初始化完成
     if (!init_finished)
     {

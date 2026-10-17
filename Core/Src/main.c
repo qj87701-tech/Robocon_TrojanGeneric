@@ -18,12 +18,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "fdcan.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include "4_Task/tsk_config_and_callback/tsk_config_and_callback.h"
 
 /* USER CODE END Includes */
 
@@ -93,11 +97,19 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
   MX_FDCAN3_Init();
   MX_TIM5_Init();
+  MX_USART1_UART_Init();
+  MX_UART7_Init();
+  MX_UART9_Init();
+  MX_USART10_UART_Init();
+  MX_UART4_Init();
   /* USER CODE BEGIN 2 */
+
+  Task_Init();
 
   /* USER CODE END 2 */
 
@@ -108,6 +120,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    Task_Loop();
   }
   /* USER CODE END 3 */
 }

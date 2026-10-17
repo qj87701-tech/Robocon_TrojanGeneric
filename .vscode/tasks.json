@@ -1,0 +1,70 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "STM32: Build Debug",
+            "type": "shell",
+            "command": "cube-cmake",
+            "args": [
+                "--build",
+                "--preset",
+                "Debug",
+                "--target",
+                "Robocon-Elian"
+            ],
+            "problemMatcher": [
+                {
+                    "owner": "gcc",
+                    "source": "gcc",
+                    "fileLocation": [
+                        "autoDetect",
+                        "${workspaceFolder}"
+                    ],
+                    "pattern": {
+                        "regexp": "^(.*?):(\\d+):(\\d*):?\\s+(?:fatal\\s+)?(warning|error):\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
+                    }
+                }
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "STM32: Flash",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": "STM32: Build Debug",
+            "command": "cube",
+            "args": [
+                "programmer",
+                "-c",
+                "port=SWD",
+                "mode=UR",
+                "reset=HWrst",
+                "freq=400",
+                "-w",
+                "${workspaceFolder}/build/Debug/Robocon-Elian.elf",
+                "-v",
+                "-rst"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        }
+    ]
+}

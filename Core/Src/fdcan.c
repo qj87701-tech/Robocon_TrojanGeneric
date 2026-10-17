@@ -141,7 +141,7 @@ void MX_FDCAN3_Init(void)
   hfdcan3.Init.AutoRetransmission = ENABLE;
   hfdcan3.Init.TransmitPause = DISABLE;
   hfdcan3.Init.ProtocolException = DISABLE;
-  hfdcan3.Init.NominalPrescaler = 3;
+  hfdcan3.Init.NominalPrescaler = 6;
   hfdcan3.Init.NominalSyncJumpWidth = 10;
   hfdcan3.Init.NominalTimeSeg1 = 29;
   hfdcan3.Init.NominalTimeSeg2 = 10;
@@ -151,7 +151,7 @@ void MX_FDCAN3_Init(void)
   hfdcan3.Init.DataTimeSeg2 = 10;
   hfdcan3.Init.MessageRAMOffset = 1706;
   hfdcan3.Init.StdFiltersNbr = 1;
-  hfdcan3.Init.ExtFiltersNbr = 0;
+  hfdcan3.Init.ExtFiltersNbr = 1;
   hfdcan3.Init.RxFifo0ElmtsNbr = 16;
   hfdcan3.Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_8;
   hfdcan3.Init.RxFifo1ElmtsNbr = 0;

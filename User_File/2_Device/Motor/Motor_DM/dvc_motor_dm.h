@@ -209,9 +209,17 @@ public:
 
     inline Enum_Motor_DM_Status Get_Status() const;
 
+    inline bool Get_Motor_Enable() const;
+
     inline Enum_Motor_DM_Control_Status_Normal Get_Control_Status() const;
 
     inline float Get_Now_Angle() const;
+
+    inline float Get_Now_Total_Angle() const;
+
+    inline bool Get_Total_Angle_Initialized() const;
+
+    inline uint32_t Get_Rx_Update_Count() const;
 
     inline float Get_Now_Omega() const;
 
@@ -251,9 +259,9 @@ public:
 
     void CAN_Send_Clear_Error() const;
 
-    void CAN_Send_Enter() const;
+    void CAN_Send_Enter();
 
-    void CAN_Send_Exit() const;
+    void CAN_Send_Exit();
 
     void CAN_Send_Save_Zero() const;
 
@@ -295,8 +303,18 @@ protected:
 
     // 电机状态
     Enum_Motor_DM_Status Motor_DM_Status = Motor_DM_Status_DISABLE;
+    // 电机目标使能状态
+    bool Motor_Enable = false;
     // 电机对外接口信息
     Struct_Motor_DM_Rx_Data_Normal Rx_Data;
+    // 上一帧原始反馈角度, rad
+    float Previous_Angle = 0.0f;
+    // 解包后的连续电机轴角度, rad
+    float Now_Total_Angle = 0.0f;
+    // 连续角度是否已经收到首帧有效反馈
+    bool Total_Angle_Initialized = false;
+    // 已接收并解析的有效反馈帧计数, 用于区分重新使能后的新反馈
+    uint32_t Rx_Update_Count = 0U;
 
     // 写变量
 
@@ -506,6 +524,17 @@ inline Enum_Motor_DM_Status Class_Motor_DM_Normal::Get_Status() const
 }
 
 /**
+ * @brief 获取电机目标使能状态
+ *
+ * @return true 电机使能
+ * @return false 电机失能
+ */
+inline bool Class_Motor_DM_Normal::Get_Motor_Enable() const
+{
+    return (Motor_Enable);
+}
+
+/**
  * @brief 获取电机控制状态
  *
  * @return Enum_Motor_DM_Control_Status_Normal 电机控制状态
@@ -523,6 +552,37 @@ inline Enum_Motor_DM_Control_Status_Normal Class_Motor_DM_Normal::Get_Control_St
 inline float Class_Motor_DM_Normal::Get_Now_Angle() const
 {
     return (Rx_Data.Now_Angle);
+}
+
+/**
+ * @brief 获取解包后的连续电机轴角度
+ *
+ * @return float 连续电机轴角度, rad
+ */
+inline float Class_Motor_DM_Normal::Get_Now_Total_Angle() const
+{
+    return (Now_Total_Angle);
+}
+
+/**
+ * @brief 获取连续角度初始化状态
+ *
+ * @return true 已收到首帧有效角度反馈
+ * @return false 尚未收到有效角度反馈
+ */
+inline bool Class_Motor_DM_Normal::Get_Total_Angle_Initialized() const
+{
+    return (Total_Angle_Initialized);
+}
+
+/**
+ * @brief 获取有效反馈帧更新计数
+ *
+ * @return uint32_t 已接收并解析的有效反馈帧数量
+ */
+inline uint32_t Class_Motor_DM_Normal::Get_Rx_Update_Count() const
+{
+    return (Rx_Update_Count);
 }
 
 /**

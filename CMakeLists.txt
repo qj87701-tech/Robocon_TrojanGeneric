@@ -49,9 +49,25 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     User_File/1_Middleware/Algorithm/Basic/alg_basic.cpp
     User_File/1_Middleware/Algorithm/PID/alg_pid.cpp
     User_File/1_Middleware/Driver/CAN/drv_can.cpp
+    User_File/1_Middleware/Driver/UART/drv_uart.cpp
+    User_File/1_Middleware/Hipnuc/hipnuc_dec.c
+    User_File/1_Middleware/Hipnuc/hipnuc_sample.c
+    User_File/1_Middleware/Protocol/pro_sbus/pro_sbus.cpp
+    User_File/1_Middleware/Protocol/pro_upper/pro_upper.cpp
     User_File/1_Middleware/System/Timestamp/sys_timestamp.cpp
+    User_File/2_Device/BSP/Key/bsp_key.cpp
+    User_File/2_Device/IMU/HI06/dvc_imu_hi06.cpp
     User_File/2_Device/Motor/Motor_DM/dvc_motor_dm.cpp
-    User_File/4_Task/tsk_config_and_callback.cpp
+    User_File/2_Device/Motor/Motor_VESC/dvc_motor_vesc.cpp
+    User_File/2_Device/NRF24L01/dvc_nrf24l01.cpp
+    User_File/2_Device/Plotter/Vofa/dvc_vofa.cpp
+    User_File/3_Module/Chassis/Omni/mod_chassis_omni.cpp
+    User_File/3_Module/Chassis/Swerve/mod_chassis_swerve.cpp
+    User_File/4_Task/tsk_motor_init/motor_init.cpp
+    User_File/4_Task/tsk_4swerve_chassis/tsk_chassis.cpp
+    User_File/4_Task/tsk_config_and_callback/tsk_config_and_callback.cpp
+    User_File/4_Task/tsk_debug/tsk_debug.cpp
+    User_File/4_Task/tsk_remote/tsk_remote.cpp
 )
 
 # Add include paths
@@ -72,5 +88,5 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-    "${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Lib/libarm_cortexM7lfsp_math.a"
+    "${CMAKE_CURRENT_SOURCE_DIR}/User_File/1_Middleware/Library/CMSIS_DSP/libarm_cortexM7lfsp_math.a"
 )

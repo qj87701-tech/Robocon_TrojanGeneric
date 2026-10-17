@@ -90,7 +90,11 @@ extern uint8_t CAN_Supercap_Tx_Data[];
 
 void CAN_Init(FDCAN_HandleTypeDef *hfdcan, CAN_Callback Callback_Function);
 
+void CAN_Extended_Init(FDCAN_HandleTypeDef *hfdcan, CAN_Callback Callback_Function);
+
 uint8_t CAN_Transmit_Data(FDCAN_HandleTypeDef *hfdcan, uint16_t ID, uint8_t *Data, uint16_t Length);
+
+uint8_t CAN_Transmit_Extended_Data(FDCAN_HandleTypeDef *hfdcan, uint32_t ID, uint8_t *Data, uint16_t Length);
 
 void TIM_100us_CAN_PeriodElapsedCallback();
 

@@ -20,13 +20,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 // 清除电机错误信息, 传统模式有效
-uint8_t DM_Motor_CAN_Message_Clear_Error[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfb};
+static uint8_t DM_Motor_CAN_Message_Clear_Error[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfb};
 // 使能电机, 传统模式有效
-uint8_t DM_Motor_CAN_Message_Enter[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc};
+static uint8_t DM_Motor_CAN_Message_Enter[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc};
 // 失能电机, 传统模式有效
-uint8_t DM_Motor_CAN_Message_Exit[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd};
+static uint8_t DM_Motor_CAN_Message_Exit[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd};
 // 保存当前电机位置为零点, 传统模式有效
-uint8_t DM_Motor_CAN_Message_Save_Zero[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe};
+static uint8_t DM_Motor_CAN_Message_Save_Zero[8] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe};
 
 /* Private function declarations ---------------------------------------------*/
 
@@ -261,12 +261,22 @@ void Class_Motor_DM_Normal::Init(const FDCAN_HandleTypeDef *hcan, const uint8_t 
         CAN_Tx_ID = __CAN_Tx_ID + 0x300;
         break;
     }
+    default:
+    {
+        CAN_Tx_ID = __CAN_Tx_ID;
+        break;
+    }
     }
     Motor_DM_Control_Method = __Motor_DM_Control_Method;
     Angle_Max = __Angle_Max;
     Omega_Max = __Omega_Max;
     Torque_Max = __Torque_Max;
     Current_Max = __Current_Max;
+    Motor_Enable = false;
+    Previous_Angle = 0.0f;
+    Now_Total_Angle = 0.0f;
+    Total_Angle_Initialized = false;
+    Rx_Update_Count = 0U;
 }
 
 /**
@@ -294,8 +304,9 @@ void Class_Motor_DM_Normal::CAN_Send_Clear_Error() const
  * @brief 发送使能电机
  *
  */
-void Class_Motor_DM_Normal::CAN_Send_Enter() const
+void Class_Motor_DM_Normal::CAN_Send_Enter()
 {
+    Motor_Enable = true;
     CAN_Transmit_Data(CAN_Manage_Object->CAN_Handler, CAN_Tx_ID, DM_Motor_CAN_Message_Enter, 8);
 }
 
@@ -303,8 +314,9 @@ void Class_Motor_DM_Normal::CAN_Send_Enter() const
  * @brief 发送失能电机
  *
  */
-void Class_Motor_DM_Normal::CAN_Send_Exit() const
+void Class_Motor_DM_Normal::CAN_Send_Exit()
 {
+    Motor_Enable = false;
     CAN_Transmit_Data(CAN_Manage_Object->CAN_Handler, CAN_Tx_ID, DM_Motor_CAN_Message_Exit, 8);
 }
 
@@ -337,7 +349,7 @@ void Class_Motor_DM_Normal::TIM_100ms_Alive_PeriodElapsedCallback()
 
     Pre_Flag = Flag;
 
-    if (Motor_DM_Status == Motor_DM_Status_DISABLE)
+    if (Motor_Enable && Motor_DM_Status == Motor_DM_Status_DISABLE)
     {
         CAN_Send_Enter();
     }
@@ -349,10 +361,18 @@ void Class_Motor_DM_Normal::TIM_100ms_Alive_PeriodElapsedCallback()
  */
 void Class_Motor_DM_Normal::TIM_Send_PeriodElapsedCallback()
 {
+    if (!Motor_Enable)
+    {
+        return;
+    }
+
     if (Rx_Data.Control_Status == Motor_DM_Control_Status_ENABLE)
     {
         // 电机在线, 正常控制
-        Basic_Math_Constrain(&Control_Angle, -Angle_Max, Angle_Max);
+        if (Motor_DM_Control_Method != Motor_DM_Control_Method_NORMAL_ANGLE_OMEGA)
+        {
+            Basic_Math_Constrain(&Control_Angle, -Angle_Max, Angle_Max);
+        }
         Basic_Math_Constrain(&Control_Omega, -Omega_Max, Omega_Max);
         Basic_Math_Constrain(&Control_Torque, -Torque_Max, Torque_Max);
         Basic_Math_Constrain(&Control_Current, -Current_Max, Current_Max);
@@ -393,6 +413,8 @@ void Class_Motor_DM_Normal::Data_Process()
         return;
     }
 
+    Rx_Update_Count++;
+
     // 处理大小端
     Basic_Math_Endian_Reverse_16((void *) &tmp_buffer->Angle_Reverse, &tmp_encoder);
     tmp_omega = (tmp_buffer->Omega_11_4 << 4) | (tmp_buffer->Omega_3_0_Torque_11_8 >> 4);
@@ -406,6 +428,28 @@ void Class_Motor_DM_Normal::Data_Process()
     Rx_Data.Now_Torque = Basic_Math_Int_To_Float(tmp_torque, 0x7ff, (1 << 12) - 1, 0, Torque_Max);
     Rx_Data.Now_MOS_Temperature = tmp_buffer->MOS_Temperature + BASIC_MATH_CELSIUS_TO_KELVIN;
     Rx_Data.Now_Rotor_Temperature = tmp_buffer->Rotor_Temperature + BASIC_MATH_CELSIUS_TO_KELVIN;
+
+    // 普通模式角度反馈以±Angle_Max回绕, 根据相邻帧恢复本次上电期间的连续电机轴角度
+    if (!Total_Angle_Initialized)
+    {
+        Previous_Angle = Rx_Data.Now_Angle;
+        Now_Total_Angle = Rx_Data.Now_Angle;
+        Total_Angle_Initialized = true;
+    }
+    else
+    {
+        float delta_angle = Rx_Data.Now_Angle - Previous_Angle;
+        if (delta_angle > Angle_Max)
+        {
+            delta_angle -= 2.0f * Angle_Max;
+        }
+        else if (delta_angle < -Angle_Max)
+        {
+            delta_angle += 2.0f * Angle_Max;
+        }
+        Now_Total_Angle += delta_angle;
+        Previous_Angle = Rx_Data.Now_Angle;
+    }
 }
 
 /**
@@ -472,6 +516,10 @@ void Class_Motor_DM_Normal::Output()
 
         CAN_Transmit_Data(CAN_Manage_Object->CAN_Handler, CAN_Tx_ID, Tx_Data, 8);
 
+        break;
+    }
+    default:
+    {
         break;
     }
     }
@@ -638,6 +686,10 @@ void Class_Motor_DM_1_To_4::PID_Calculate()
 
         Target_Torque = PID_Omega.Get_Out();
 
+        break;
+    }
+    default:
+    {
         break;
     }
     }
